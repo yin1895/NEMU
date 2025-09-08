@@ -5,7 +5,7 @@ This project is the programming assignment of the class ICS(Introduction to Comp
 This project is introduced from Nanjin University in 2016. Thank you for  Prof. Chunfeng Yuan of NJU and Dr. Zihao Yu of ICT.
 
 The following subprojects/components are included. Some of them are not fully implemented.
-* NEMU
+* NEM
 * testcase
 * uClibc
 * kernel
