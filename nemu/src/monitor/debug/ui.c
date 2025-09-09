@@ -38,17 +38,23 @@ static int cmd_q(char *args) {
 
 static int cmd_help(char *args);
 
+static int cmd_si(char *args);
+
+static int cmd_info(char *args);
+static int cmd_x(char *args);
+
 static struct {
-	char *name;
-	char *description;
-	int (*handler) (char *);
+    char *name;
+    char *description;
+    int (*handler) (char *);
 } cmd_table [] = {
-	{ "help", "Display informations about all supported commands", cmd_help },
-	{ "c", "Continue the execution of the program", cmd_c },
-	{ "q", "Exit NEMU", cmd_q },
-
-	/* TODO: Add more commands */
-
+    { "help", "Display informations about all supported commands", cmd_help },
+    { "c", "Continue the execution of the program", cmd_c },
+    { "q", "Exit NEMU", cmd_q },
+    { "si", "Excute N instructions one by one and then halt.", cmd_si },
+    { "info", "display the register status", cmd_info },
+    { "x", "Find the value of the expression ExpR and use the result as the starting memory address to output n consecutive four bytes in hexadecimal format", cmd_x },
+    /* TODO: Add more commands */
 };
 
 #define NR_CMD (sizeof(cmd_table) / sizeof(cmd_table[0]))
@@ -74,6 +80,66 @@ static int cmd_help(char *args) {
 		printf("Unknown command '%s'\n", arg);
 	}
 	return 0;
+}
+
+static int cmd_si(char *args){
+	uint64_t N = 0;
+
+	if(args == NULL){
+		N=1;
+	}
+	else{
+		int flag = sscanf(args,"%lu",&N);
+		if(flag <= 0){
+			printf("Error: Args error in cmd si\n");
+			return 0;
+		}
+	}
+
+	cpu_exec(N);
+
+	return 0;
+}
+
+static int cmd_info(char *args){
+    if(args != NULL && args[0] == 'r'){
+        int i;
+        for(i = R_EAX; i <= R_EDI; i++){
+            printf("$%s\t0x%08x\t%u\n", regsl[i], reg_l(i), reg_l(i));
+        }
+        printf("$eip\t0x%08x\t%u\n", cpu.eip, cpu.eip);
+    }
+    return 0;
+}
+
+static int cmd_x(char *args){
+    if(args == NULL){
+        printf("Input error\n");
+        return 0;
+    }
+    int n = 0;
+    swaddr_t init_address = 0;
+    char *narg = strtok(args, " ");
+    char *expr = strtok(NULL, " ");
+    if(narg == NULL || expr == NULL){
+        printf("Input error\n");
+        return 0;
+    }
+    sscanf(narg, "%d", &n);
+    sscanf(expr, "%x", &init_address);
+
+    int i; // 声明移到循环外.C89不允许在内部声明变量
+    for(i = 0; i < n; i++){
+        if(i % 4 == 0)
+            printf("0x%08x: 0x%08x", init_address, swaddr_read(init_address, 4));
+        else if((i + 1) % 4 == 0)
+            printf(" 0x%08x\n", swaddr_read(init_address, 4));
+        else
+            printf(" 0x%08x", swaddr_read(init_address, 4));
+        init_address += 4;
+    }
+    printf("\n");
+    return 0;
 }
 
 void ui_mainloop() {
