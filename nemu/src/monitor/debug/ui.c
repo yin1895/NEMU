@@ -87,7 +87,7 @@ static int cmd_si(char *args){
      * - 无参数时默认执行 1 步
      * - 有参数时解析为无符号整数，非法输入给出提示并不执行
      */
-    uint32_t N = 1;           /* 默认步数 1 */
+    uint32_t N = 1;           
     char *endp = NULL;
 
     if (args != NULL) {
