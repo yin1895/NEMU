@@ -42,7 +42,7 @@ static int cmd_si(char *args);
 
 static int cmd_info(char *args);
 static int cmd_x(char *args);
-
+static int cmd_p(char *args);
 static struct {
     char *name;
     char *description;
@@ -54,6 +54,8 @@ static struct {
     { "si", "Excute N instructions one by one and then halt.", cmd_si },
     { "info", "display the register status", cmd_info },
     { "x", "Find the value of the expression ExpR and use the result as the starting memory address to output n consecutive four bytes in hexadecimal format", cmd_x },
+    { "p", "Evaluate an expression and print its value", cmd_p },
+    
     /* TODO: Add more commands */
 };
 
@@ -211,6 +213,28 @@ static int cmd_x(char *args){
         addr += 4;
     }
     if (n % 4 != 0) printf("\n");
+    return 0;
+}
+
+static int cmd_p(char *args){
+    /* 表达式求值命令：p EXPR */
+    if (args == NULL) {
+        printf("Usage: p EXPR\n");
+        return 0;
+    }
+    while (*args == ' ') args++;
+    if (*args == '\0') {
+        printf("Usage: p EXPR\n");
+        return 0;
+    }
+
+    bool success = true;
+    uint32_t val = expr(args, &success);
+    if (!success) {
+        printf("Error: 表达式解析失败: %s\n", args);
+        return 0;
+    }
+    printf("%u (0x%08x)\n", (unsigned int)val, (unsigned int)val);
     return 0;
 }
 
