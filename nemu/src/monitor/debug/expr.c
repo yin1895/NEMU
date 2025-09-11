@@ -96,16 +96,23 @@ static bool make_token(char *e) {
                         int copy_len = substr_len;
                         if(copy_len >= (int)sizeof(tokens[nr_token].str))
                             copy_len = sizeof(tokens[nr_token].str) - 1;
+                        tokens[nr_token].type = rules[i].token_type;
                         memcpy(tokens[nr_token].str, substr_start, copy_len);
                         tokens[nr_token].str[copy_len] = '\0';
-                        tokens[nr_token].type = rules[i].token_type;
-                        nr_token++;
+                        nr_token ++;
                         break;
                     }
-                    default:
+                    default: {
+                        /* operators and parentheses: store the single token string */
+                        int copy_len = substr_len;
+                        if(copy_len >= (int)sizeof(tokens[nr_token].str))
+                            copy_len = sizeof(tokens[nr_token].str) - 1;
                         tokens[nr_token].type = rules[i].token_type;
-                        nr_token++;
+                        memcpy(tokens[nr_token].str, substr_start, copy_len);
+                        tokens[nr_token].str[copy_len] = '\0';
+                        nr_token ++;
                         break;
+                    }
                 }
 
                 break;
@@ -122,13 +129,13 @@ static bool make_token(char *e) {
 }
 
 uint32_t expr(char *e, bool *success) {
-	if(!make_token(e)) {
-		*success = false;
-		return 0;
-	}
+    if(!make_token(e)) {
+        *success = false;
+        return 0;
+    }
 
-	/* TODO: Insert codes to evaluate the expression. */
-	panic("please implement me");
-	return 0;
+    /* TODO: Insert codes to evaluate the expression. */
+    panic("please implement me");
+    return 0;
 }
 
