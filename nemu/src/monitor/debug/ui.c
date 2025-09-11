@@ -170,7 +170,7 @@ static int cmd_x(char *args){
     while (*expr_str == ' ') expr_str++;
 
     if (*expr_str == '\0') {
-        printf("Error: 表达式为空。示例: x 4 0x1000 或 x 8 $esp+0x10\n");
+        printf("Error: 表达式为空。\n");
         *space = ' ';              /* 复原被改写的空格 */
         return 0;
     }
