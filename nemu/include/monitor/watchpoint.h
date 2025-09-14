@@ -7,7 +7,7 @@ typedef struct watchpoint {
 	int NO;
 	struct watchpoint *next;
 
-	/* TODO: Add more members if necessary */
+	
 	/* 新增用于监视点的成员 */
     char expr[128];   /* 存放用户输入的表达式（以 NEMU 的 expr() 为准） */
     uint32_t val;     /* 最近一次求值的值 */

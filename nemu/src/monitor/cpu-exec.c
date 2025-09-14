@@ -72,7 +72,7 @@ void cpu_exec(volatile uint32_t n) {
 		}
 #endif
 
-		/* TODO: check watchpoints here. */
+		
 
 		/* check watchpoints after executing one instruction */
 		extern int wp_check();
