@@ -10,8 +10,9 @@
 enum {
     NOTYPE = 256, EQ, NUM, HEX, REG,
     DEREF, NEG,      // 一元 * 与 负号
-    NE, AND, OR, NOT // 新增: != && || !
-// ...existing code...
+    NE, AND, OR, NOT // 新增: != && || ! 
+    /* TODO: Add more token types */
+
 };
 
 static struct rule {
@@ -203,25 +204,25 @@ static int precedence(int t) {
 }
 
 static int find_dominant_op(int l, int r, bool *ok) {
-	int pos = -1, min_pri = 100;
-	int bal = 0;
+    int pos = -1, min_pri = 100;
+    int bal = 0;
 	int i;
-	for (i = l; i <= r; i++) {
-		int t = tokens[i].type;
-		if (t == '(') { bal++; continue; }
-		if (t == ')') { bal--; if (bal < 0) { *ok = false; return -1; } continue; }
-		if (bal != 0) continue; // 忽略括号内部
+    for (i = l; i <= r; i++) {
+        int t = tokens[i].type;
+        if (t == '(') { bal++; continue; }
+        if (t == ')') { bal--; if (bal < 0) { *ok = false; return -1; } continue; }
+        if (bal != 0) continue;
 
-		int pri = precedence(t);
-		if (pri < 0) continue;
+        int pri = precedence(t);
+        if (pri < 0) continue;
 
-		// 选择最低优先级，若同级则取最右（实现左结合）
-		if (pri < min_pri || (pri == min_pri && i > pos)) {
-			min_pri = pri;
-			pos = i;
-		}
-	}
-	return pos;
+        // 取最低优先级, 同级取最右, 以实现左结合
+        if (pri < min_pri || (pri == min_pri && i > pos)) {
+            min_pri = pri;
+            pos = i;
+        }
+    }
+    return pos;
 }
 
 static uint32_t parse_number_token(const Token *tk, bool *ok) {
@@ -307,13 +308,13 @@ uint32_t eval(int l, int r, bool *ok) {
 		case '-': return lhs - rhs;
 		case '*': return lhs * rhs;
 		case '/':
-			if (rhs == 0) { *ok = false; return 0; }
-			return lhs / rhs;
-		case EQ:  return (lhs == rhs);
-		case NE:  return (lhs != rhs);
-		case AND: return (lhs && rhs);
-		case OR:  return (lhs || rhs);
-		default: *ok = false; return 0;
+            if (rhs == 0) { *ok = false; return 0; }
+            return lhs / rhs;
+        case EQ:  return (lhs == rhs);
+        case NE:  return (lhs != rhs);
+        case AND: return (lhs && rhs);
+        case OR:  return (lhs || rhs);
+        default: *ok = false; return 0;
 	}
 }
 
