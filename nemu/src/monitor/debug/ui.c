@@ -41,6 +41,8 @@ static int cmd_help(char *args);
 static int cmd_si(char *args);
 
 static int cmd_info(char *args);
+static int cmd_w(char *args);
+static int cmd_d(char *args);
 static int cmd_x(char *args);
 static int cmd_p(char *args);
 static struct {
@@ -52,9 +54,11 @@ static struct {
     { "c", "Continue the execution of the program", cmd_c },
     { "q", "Exit NEMU", cmd_q },
     { "si", "Excute N instructions one by one and then halt.", cmd_si },
-    { "info", "display the register status", cmd_info },
+    { "info", "display the register status (info r) or watchpoints (info w)", cmd_info },
     { "x", "Find the value of the expression ExpR and use the result as the starting memory address to output n consecutive four bytes in hexadecimal format", cmd_x },
     { "p", "Evaluate an expression and print its value", cmd_p },
+    { "w", "Set a watchpoint for expression: w EXPR", cmd_w },
+    { "d", "Delete a watchpoint by number: d N", cmd_d },
     
     /* TODO: Add more commands */
 };
@@ -115,7 +119,7 @@ static int cmd_si(char *args){
 static int cmd_info(char *args){
     /* info 子命令：
      * - info r: 打印通用寄存器和 eip
-     * 其余子命令未实现时给出提示
+     * - info w: 打印所有监视点
      */
     if (args == NULL) {
         printf("Usage: info r\n");
@@ -132,9 +136,62 @@ static int cmd_info(char *args){
             printf("$%s\t0x%08x\t%u\n", regsl[i], (unsigned int)reg_l(i), (unsigned int)reg_l(i));
         }
         printf("$eip\t0x%08x\t%u\n", (unsigned int)cpu.eip, (unsigned int)cpu.eip);
+    } else if (args[0] == 'w' && (args[1] == '\0' || args[1] == ' ')) {
+        /* info w: show watchpoints */
+        wp_info();
     } else {
-        printf("Unsupported subcommand. Try: info r\n");
+        printf("Unsupported subcommand. Try: info r or info w\n");
     }
+    return 0;
+}
+
+/* Set a watchpoint: w EXPR */
+static int cmd_w(char *args) {
+    if (args == NULL) {
+        printf("Usage: w EXPR\n");
+        return 0;
+    }
+    while (*args == ' ') args++;
+    if (*args == '\0') {
+        printf("Usage: w EXPR\n");
+        return 0;
+    }
+
+    int no = wp_create(args);
+    if (no < 0) {
+        printf("Failed to create watchpoint for expression: %s\n", args);
+    } else {
+        printf("Created watchpoint %d for: %s\n", no, args);
+    }
+    return 0;
+}
+
+/* Delete a watchpoint: d N */
+static int cmd_d(char *args) {
+    if (args == NULL) {
+        printf("Usage: d N\n");
+        return 0;
+    }
+    while (*args == ' ') args++;
+    if (*args == '\0') {
+        printf("Usage: d N\n");
+        return 0;
+    }
+
+    char *endp = NULL;
+    long no = strtol(args, &endp, 10);
+    while (endp && *endp == ' ') endp++;
+    if (endp == NULL || *endp != '\0') {
+        printf("Error: N should be a decimal integer. Example: d 0\n");
+        return 0;
+    }
+    if (no < 0) {
+        printf("Error: N should be non-negative.\n");
+        return 0;
+    }
+
+    wp_delete((int)no);
+    printf("Deleted watchpoint %ld (if it existed)\n", no);
     return 0;
 }
 
@@ -263,7 +320,7 @@ void ui_mainloop() {
 		int i;
 		for(i = 0; i < NR_CMD; i ++) {
 			if(strcmp(cmd, cmd_table[i].name) == 0) {
-				if(cmd_table[i].handler(args) < 0) { return; }
+				if (cmd_table[i].handler(args) < 0) { return; }
 				break;
 			}
 		}

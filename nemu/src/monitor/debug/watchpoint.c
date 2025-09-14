@@ -97,13 +97,11 @@ void wp_delete(int no) {
     WP *p = head, *prev = NULL;
     while (p != NULL) {
         if (p->NO == no) {
+            /* detach from used list */
             if (prev == NULL) head = p->next;
             else prev->next = p->next;
-            /* 将 p 放回空闲池 */
-            p->next = free_;
-            p->expr[0] = '\0';
-            p->val = 0;
-            free_ = p;
+            /* reuse free_wp to return p to free list */
+            free_wp(p);
             return;
         }
         prev = p;
@@ -129,9 +127,12 @@ int wp_check() {
         bool success = false;
         uint32_t newv = expr(p->expr, &success);
         if (success && newv != p->val) {
-            /* 按要求输出 hint，包括监视点编号和触发指令的 eip（十六进制） */
+            /* print hint including old and new values (hex and decimal) */
             printf("Hint watchpoint %d at address 0x%08x\n", p->NO, cpu.eip);
-            /* 更新保存的值 */
+            printf("\tExpr: %s\n", p->expr);
+            printf("\tOld value: %u (0x%08x)\n", (unsigned int)p->val, (unsigned int)p->val);
+            printf("\tNew value: %u (0x%08x)\n", (unsigned int)newv, (unsigned int)newv);
+            /* update stored value */
             p->val = newv;
             return 1;
         }
