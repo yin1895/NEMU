@@ -8,33 +8,38 @@
 #include <string.h>
 
 enum {
-	NOTYPE = 256, EQ, NUM, HEX, REG,
-	DEREF, NEG
-
-	/* TODO: Add more token types */
-
+    NOTYPE = 256, EQ, NUM, HEX, REG,
+    DEREF, NEG,      // 一元 * 与 负号
+    NE, AND, OR, NOT // 新增: != && || !
+// ...existing code...
 };
 
 static struct rule {
-	char *regex;
-	int token_type;
+    char *regex;
+    int token_type;
 } rules[] = {
 
-	/* TODO: Add more rules.
-	 * Pay attention to the precedence level of different rules.
-	 */
+    /* TODO: Add more rules.
+     * Pay attention to the precedence level of different rules.
+     */
 
-	{" +",	NOTYPE},				// spaces
-	{"\\+", '+'},					// plus
-	{"==", EQ},						// equal
-	{"0[xX][0-9a-fA-F]+", HEX},     // hex number, must be before decimal
-	{"[0-9]+", NUM},               // decimal number
-	{"\\$[a-zA-Z_][a-zA-Z0-9_]*", REG}, // register like $eax
-	{"\\(", '('},                // left parenthesis
-	{"\\)", ')'},                // right parenthesis
-	{"\\*", '*'},                // multiply or deref (contextual)
-	{"/", '/'},                    // divide
-	{"\\-", '-'} 					// minus or neg (contextual)
+    {" +",	NOTYPE},                // 空白
+    {"0[xX][0-9a-fA-F]+", HEX},     // 16进制(放在十进制前)
+    {"[0-9]+", NUM},                // 十进制
+    {"\\$[a-zA-Z_][a-zA-Z0-9_]*", REG}, // 寄存器
+
+    {"!=", NE},
+    {"==", EQ},
+    {"&&", AND},
+    {"\\|\\|", OR},
+    {"!",  NOT},
+
+    {"\\(", '('},
+    {"\\)", ')'},
+    {"\\*", '*'},
+    {"/", '/'},
+    {"\\-", '-'},
+    {"\\+", '+'},
 };
 
 #define NR_REGEX (sizeof(rules) / sizeof(rules[0]) )
@@ -141,16 +146,17 @@ uint32_t expr(char *e, bool *success) {
 	/* 将一元 * 和 - 重新标注为 DEREF 与 NEG */
 	int i;
 	for (i = 0; i < nr_token; i++) {
-		if (tokens[i].type == '*') {
-			if (i == 0 || (tokens[i-1].type != NUM && tokens[i-1].type != HEX && tokens[i-1].type != REG && tokens[i-1].type != ')')) {
-				tokens[i].type = DEREF;
-			}
-		} else if (tokens[i].type == '-') {
-			if (i == 0 || (tokens[i-1].type != NUM && tokens[i-1].type != HEX && tokens[i-1].type != REG && tokens[i-1].type != ')')) {
-				tokens[i].type = NEG;
-			}
-		}
-	}
+        if (tokens[i].type == '*') {
+            if (i == 0 || (tokens[i-1].type != NUM && tokens[i-1].type != HEX && tokens[i-1].type != REG && tokens[i-1].type != ')')) {
+                tokens[i].type = DEREF;
+            }
+        } else if (tokens[i].type == '-') {
+            if (i == 0 || (tokens[i-1].type != NUM && tokens[i-1].type != HEX && tokens[i-1].type != REG && tokens[i-1].type != ')')) {
+                tokens[i].type = NEG;
+            }
+        }
+        // '!' 永远是一元, 词法阶段已标记为 NOT, 无需二次判别
+    }
 
 	/* 声明并调用递归求值 */
 	uint32_t eval(int l, int r, bool *ok);
@@ -179,16 +185,21 @@ static bool check_parentheses(int l, int r, bool *ok) {
 }
 
 static int precedence(int t) {
-	switch (t) {
-		case EQ: return 1;          // 最低优先级
-		case '+':
-		case '-': return 2;
-		case '*':
-		case '/': return 3;
-		case DEREF:
-		case NEG: return 4;         // 一元最高
-		default: return -1;
-	}
+    // 数字越小优先级越低(便于 find_dominant_op 取“最低”)
+    switch (t) {
+        case OR:            return 1; // ||
+        case AND:           return 2; // &&
+        case EQ:
+        case NE:            return 3; // == !=
+        case '+':
+        case '-':           return 4;
+        case '*':
+        case '/':           return 5;
+        case DEREF:
+        case NEG:
+        case NOT:           return 6; // 一元最高
+        default:            return -1; // 非运算符
+    }
 }
 
 static int find_dominant_op(int l, int r, bool *ok) {
@@ -278,12 +289,13 @@ uint32_t eval(int l, int r, bool *ok) {
 	if (op < 0 || !*ok) { *ok = false; return 0; }
 
 	int t = tokens[op].type;
-	if (t == NEG || t == DEREF) {
-		uint32_t rhs = eval(op + 1, r, ok);
-		if (!*ok) return 0;
-		if (t == NEG) return (uint32_t)(-(int32_t)rhs);
-		else return mem_deref(rhs, ok);
-	}
+	if (t == NEG || t == DEREF || t == NOT) {
+        uint32_t rhs = eval(op + 1, r, ok);
+        if (!*ok) return 0;
+        if (t == NEG)   return (uint32_t)(-(int32_t)rhs);
+        if (t == DEREF) return mem_deref(rhs, ok);
+        return (!rhs); // NOT
+    }
 
 	uint32_t lhs = eval(l, op - 1, ok);
 	if (!*ok) return 0;
@@ -294,8 +306,13 @@ uint32_t eval(int l, int r, bool *ok) {
 		case '+': return lhs + rhs;
 		case '-': return lhs - rhs;
 		case '*': return lhs * rhs;
-		case '/': if (rhs == 0) { *ok = false; return 0; } return lhs / rhs;
-		case EQ: return (lhs == rhs);
+		case '/':
+			if (rhs == 0) { *ok = false; return 0; }
+			return lhs / rhs;
+		case EQ:  return (lhs == rhs);
+		case NE:  return (lhs != rhs);
+		case AND: return (lhs && rhs);
+		case OR:  return (lhs || rhs);
 		default: *ok = false; return 0;
 	}
 }
