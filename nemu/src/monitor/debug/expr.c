@@ -186,7 +186,7 @@ static bool check_parentheses(int l, int r, bool *ok) {
 }
 
 static int precedence(int t) {
-    // 数字越小优先级越低(便于 find_dominant_op 取“最低”)
+    
     switch (t) {
         case OR:            return 1; // ||
         case AND:           return 2; // &&
