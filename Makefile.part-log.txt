@@ -1,0 +1,5 @@
+nemu: nemu/src/monitor/debug/elf.c:53: load_elf_tables: Assertion `memcmp(elf->e_ident, magic, 4) == 0' failed.
+
+
+===== the original log.txt =====
+
